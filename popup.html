@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { 
+      width: 300px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      padding: 15px;
+      background-color: #f8f9fa;
+    }
+    h3 {
+      color: #2c3e50;
+      margin-top: 0;
+      margin-bottom: 15px;
+      text-align: center;
+      font-size: 20px;
+    }
+    input, button { 
+      width: 100%;
+      margin: 8px 0;
+      padding: 8px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      box-sizing: border-box;
+    }
+    input:focus {
+      outline: none;
+      border-color: #4a90e2;
+      box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
+    }
+    button {
+      background-color: #4a90e2;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #357abd;
+    }
+    #download {
+      background-color: #27ae60;
+    }
+    #download:hover {
+      background-color: #219a52;
+    }
+    pre {
+      max-height: 150px;
+      overflow: auto;
+      background: #ffffff;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h3>Auto Scraper</h3>
+  <!-- <input id="keyword" placeholder="Enter keyword" /> -->
+  <button id="start">Start Automation</button>
+  <button id="download">Download JSON</button>
+  <pre id="log"></pre>
+  <script src="popup.js"></script>
+</body>
+</html>
