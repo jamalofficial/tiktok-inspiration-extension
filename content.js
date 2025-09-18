@@ -129,8 +129,8 @@ async function processResults() {
     // Try to go to next page if not done
     if (__collected_data.length < 100) {
       // Updated selector for TikTok next page button
-      const nextBtn = document.querySelector('.TUXButton--capsule.TUXButton--large.TUXButton--secondary[aria-disabled="false"]');
-      if (!nextBtn) {
+      const nextBtn = document.querySelectorAll('[class*="--PaginationContainerDiv"] > button');
+      if (!nextBtn[1] || nextBtn[1].getAttribute('aria-disabled') || nextBtn[1].classList.contains('TUXButton--disabled')) {
         keepGoing = false;
         __finished = true;
         break;
@@ -139,7 +139,7 @@ async function processResults() {
       __progress.page += 1;
       __progress.row = 0;
       saveState();
-      nextBtn.click();
+      nextBtn[1].click();
       await sleep(5000); // Wait for next page to load
       // On next page, the script will reload and auto-resume from saved state
       return; // Stop current execution, resume on next page
