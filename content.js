@@ -1,6 +1,7 @@
 let __collected_data = [];
 let __progress = { page: 0, row: 0 };
 let __running = false;
+let __finished = false;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -98,56 +99,70 @@ async function scrapePageData() {
 
 
 async function processResults() {
-    console.log("Starting automation...");
-    let test = true;
-    while (__collected_data.length < 100 && test) {
-        const rows = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
-        console.log("rows", rows.map(r => r.innerText.trim()));
-        // break;
+  console.log("Starting automation...");
+  let keepGoing = true;
+  __finished = false;
+  while (__collected_data.length < 100 && keepGoing) {
+    // Wait for rows to appear (ensures next page is loaded)
+    await waitFor("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']", 15000);
+    const rows = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
+    console.log("rows", rows.map(r => r.innerText.trim()));
 
-        for (let i = __progress.row; i < rows.length; i++) {
-            const temp_rows = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
+    for (let i = __progress.row; i < rows.length; i++) {
+      const temp_rows = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
 
-            temp_rows[i].click();
-            await sleep(10000);
+      temp_rows[i].click();
+      await sleep(10000);
 
-            const data = await scrapePageData();
-            __collected_data.push(data);
+      const data = await scrapePageData();
+      __collected_data.push(data);
 
-            __progress.row = i + 1;
-            saveState();
+      __progress.row = i + 1;
+      saveState();
 
-            window.history.back();
-            await sleep(10000);
+      window.history.back();
+      await sleep(10000);
 
-            if ( i == 3 ) break;
-            if (__collected_data.length >= 100) break;
-        }
-        test = false;
-
-        // move to next page
-        // if (__collected_data.length < 100) {
-        //     const nextBtn = document.querySelector("#next-list");
-        //     if (!nextBtn) break;
-        //     nextBtn.click();
-        //     __progress.page += 1;
-        //     __progress.row = 0;
-        //     saveState();
-        //     await sleep(5000);
-        // }
+      if (__collected_data.length >= 100) break;
     }
 
+    // Try to go to next page if not done
+    if (__collected_data.length < 100) {
+      // Updated selector for TikTok next page button
+      const nextBtn = document.querySelector('.TUXButton--capsule.TUXButton--large.TUXButton--secondary[aria-disabled="false"]');
+      if (!nextBtn) {
+        keepGoing = false;
+        __finished = true;
+        break;
+      }
+      // Save state before navigation
+      __progress.page += 1;
+      __progress.row = 0;
+      saveState();
+      nextBtn.click();
+      await sleep(5000); // Wait for next page to load
+      // On next page, the script will reload and auto-resume from saved state
+      return; // Stop current execution, resume on next page
+    } else {
+      keepGoing = false;
+      __finished = true;
+    }
+  }
+
+  if (__finished) {
     alert("Automation finished, you can download JSON now.");
     __running = false;
     saveState();
     sendLog();
+  }
 }
 
 // ---- auto resume after reload ----
 (async () => {
   await loadState();
 
-  if (__running) {
+  // Only auto-resume if not on the first page
+  if (__running && !__finished && __progress.page > 0) {
     console.log(
       "Resuming automation...",
       __collected_data,
