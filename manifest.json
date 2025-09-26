@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Topic Scraper",
   "version": "1.0",
-  "permissions": ["storage", "scripting", "tabs"],
+  "permissions": ["storage", "scripting", "tabs", "downloads"],
   "background": {
     "service_worker": "background.js"
   },
