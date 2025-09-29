@@ -165,6 +165,10 @@ async function processResults() {
 			// Re-select to avoid stale nodes after DOM updates
 			const tempNodes = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
 			const node = tempNodes[i];
+			node.addEventListener('click', function(event){
+				event.preventDefault();
+				chrome.runtime.sendMessage({action: 'console.log', data: {msg: "here we are", event}});
+			});
 			if (!node) break;
 
 			// Derive detail URL: prefer anchor href if present, else simulate click to read location
@@ -217,23 +221,26 @@ async function processResults() {
 			__collected_data,
 			"records collected"
 		);
+		chrome.runtime.sendMessage({action: "isRunning", status: __running});
 		processResults();
 	}
 })();
 
 // ---- start/stop via popup or console ----
-chrome.runtime.onMessage.addListener((msg) => {
-	if (msg.action === "startAutomation") {
-		__running = true;
-		__collected_data = [];
-		__progress = { page: 0, row: 0 };
-		saveState();
-		processResults();
-	}
-
-	if (msg.action === "stopAutomation") {
-		__running = false;
-		saveState();
-		alert("Automation stopped.");
-	}
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+	if (msg.action === "toggleScrapping") {
+		if (!__running) {
+			__running = true;
+			__collected_data = [];
+			__progress = { page: 0, row: 0 };
+			saveState();
+			processResults();
+			sendResponse({status: __running, "toggle": "Started"});
+		} else {
+			__running = false;
+			saveState();
+			sendResponse({status: __running, "toggle": "Stopped"});
+			alert("Automation stopped by user.");
+		}
+	}	
 });
