@@ -11,7 +11,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "sendLog") {
     chrome.storage.local.get(["collectedData"], (result) => {
       const collectedData = result.collectedData || [];
-      fetch('http://localhost:8000/api/v1/logs', {
+      fetch('https://campfire-insta-tiktok.gitwork.tech/api/v1/logs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ log: collectedData, info: msg.data || {} }),

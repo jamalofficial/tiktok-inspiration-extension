@@ -136,11 +136,11 @@ async function processResults() {
         //     await sleep(5000);
         // }
     }
-
-    alert("Automation finished, you can download JSON now.");
+	chrome.runtime.sendMessage({action: "stopped"});
     __running = false;
     saveState();
     sendLog();
+	alert("Automation finished! Logs sent to the server.");
 }
 
 // ---- auto resume after reload ----
