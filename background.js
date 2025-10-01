@@ -2,6 +2,9 @@ let collectedData = [];
 let progress = { page: 0, row: 0 };
 let running = false;
 
+// const API_URL = 'https://campfire-insta-tiktok.gitwork.tech/api/v1';
+const API_URL = 'http://localhost:5050/api/v1';
+
 // Map detail tabId -> { openerTabId, url }
 const detailTabMap = new Map();
 
@@ -14,7 +17,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	if (msg.action === "sendLog") {
 		chrome.storage.local.get(["collectedData"], (result) => {
 			const collectedData = result.collectedData || [];
-			fetch('http://localhost:8000/api/v1/logs', {
+			fetch(`${API_URL}/logs`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ log: collectedData, info: msg.data || {} }),
@@ -68,12 +71,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 			targetUrl = url + '#tiscrape=1';
 		}
 
-		chrome.tabs.create({ url: targetUrl, active: false }, (tab) => {
+		chrome.tabs.create({ url: targetUrl, active: true }, (tab) => {
 			if (chrome.runtime.lastError || !tab?.id) {
 				sendResponse({ ok: false, error: chrome.runtime.lastError?.message || "Failed to create tab" });
 				return;
 			}
 			detailTabMap.set(tab.id, { openerTabId, url: targetUrl });
+			// Ensure window is focused as well
+			if (tab.windowId != null) {
+				chrome.windows.update(tab.windowId, { focused: true });
+			}
 			sendResponse({ ok: true, tabId: tab.id });
 		});
 		return true; // async response
@@ -94,6 +101,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 						detailTabMap.delete(detailTabId);
 					});
 				}
+
+				// Refocus original opener tab and its window
+				chrome.tabs.get(mapping.openerTabId, (openerTab) => {
+					if (openerTab) {
+						chrome.windows.update(openerTab.windowId, { focused: true }, () => {
+							chrome.tabs.update(mapping.openerTabId, { active: true });
+						});
+					}
+				});
 			});
 		} else {
 			// Do not close tabs that aren't tracked as detail tabs

@@ -8,15 +8,22 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.tiktok.com/csi/search*"],
+      "matches": ["https://www.tiktok.com/csi/search*", "https://www.tiktok.com/csi/detail*"],
+      "js": ["bridge.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.tiktok.com/csi/search*", "https://www.tiktok.com/csi/detail*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "world": "MAIN"
     }
   ],
   "action": {
     "default_popup": "popup.html"
   },
   "host_permissions": [
-    "https://www.tiktok.com/csi/search*"
+    "https://www.tiktok.com/*",
+    "http://localhost:5050/*"
   ]
 }

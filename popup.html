@@ -28,15 +28,25 @@
       border-color: #4a90e2;
       box-shadow: 0 0 5px rgba(74, 144, 226, 0.3);
     }
-    button {
+    .info-btn {
       background-color: #4a90e2;
       color: white;
       border: none;
       cursor: pointer;
       transition: background-color 0.3s;
     }
-    button:hover {
+    .info-btn:hover {
       background-color: #357abd;
+    }
+    .danger-btn {
+      background-color: #ec405c;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .danger-btn:hover {
+      background-color: #f03857;
     }
     #download {
       background-color: #27ae60;
@@ -60,8 +70,8 @@
 <body>
   <h3>Auto Scraper</h3>
   <!-- <input id="keyword" placeholder="Enter keyword" /> -->
-  <button id="start">Start Automation</button>
-  <button id="stop">Stop Automation</button>
+  <button id="scrapping-start-btn" class="info-btn">Start Automation</button>
+  <!-- <button id="stop">Stop Automation</button> -->
   <button id="download">Download JSON</button>
   <pre id="log"></pre>
   <script src="popup.js"></script>
