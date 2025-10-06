@@ -4,6 +4,8 @@ let __progress = { page: 0, row: 0 };
 let __running = false;
 let continueProcessing = true;
 
+const RESULTS_LIMIT = 4;
+
 // ---- runtime shim for MAIN world ----
 (function setupRuntimeShimForMainWorld() {
 	const isMainWorld = typeof chrome === "undefined" || !chrome?.runtime;
@@ -286,63 +288,63 @@ function hideProgress() {
 
 async function processResults() {
 	showProgress();
-	while (__collected_data.length < 100 && continueProcessing) {
+	while (__collected_data.length < RESULTS_LIMIT && continueProcessing) {
 		const rowLinkNodes = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
-		console.log("rows", rowLinkNodes.map(r => r.innerText.trim()));
-    let processedRows = 0;
+		// console.log("rows", rowLinkNodes.map(r => r.innerText.trim()));
+    	let processedRows = 0;
 
 		for (let i = __progress.row; i < rowLinkNodes.length; i++) {
-      if(continueProcessing){
-        // Re-select to avoid stale nodes after DOM updates
-        const tempNodes = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
+			if(continueProcessing){
+				// Re-select to avoid stale nodes after DOM updates
+				const tempNodes = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
 
-        const node = tempNodes[i];
-        if (!node) break;
+				const node = tempNodes[i];
+				if (!node) break;
 
-        const parent = node.closest("[class*='--CellContainerDiv']");
-        const parentDescriptors = parent ? Object.getOwnPropertyDescriptors(parent) : {};
-        const reactFiberKey = Object.keys(parentDescriptors).find((k) => k.startsWith("__reactFiber$"));
-        const refKey = reactFiberKey ? parent[reactFiberKey]?.return?.key : undefined;
+				const parent = node.closest("[class*='--CellContainerDiv']");
+				const parentDescriptors = parent ? Object.getOwnPropertyDescriptors(parent) : {};
+				const reactFiberKey = Object.keys(parentDescriptors).find((k) => k.startsWith("__reactFiber$"));
+				const refKey = reactFiberKey ? parent[reactFiberKey]?.return?.key : undefined;
 
-        let detailUrl = node.closest('a')?.href;
-        if (!detailUrl && refKey) {
-          detailUrl = `https://www.tiktok.com/csi/detail/${refKey}`;
-        }
+				let detailUrl = node.closest('a')?.href;
+				if (!detailUrl && refKey) {
+				detailUrl = `https://www.tiktok.com/csi/detail/${refKey}`;
+				}
 
-        try {
-          const data = await openDetailAndWait(detailUrl);
-          __collected_data.push(data);
-          __progress.row = i + 1;
-          saveState();
-        } catch (e) {
-          console.error("Detail scrape failed", e);
-          __progress.row = i + 1; // skip and continue
-          saveState();
-        }
+				try {
+					const data = await openDetailAndWait(detailUrl);
+					__collected_data.push(data);
+					__progress.row = i + 1;
+					saveState();
+				} catch (e) {
+					console.error("Detail scrape failed", e);
+					__progress.row = i + 1; // skip and continue
+					saveState();
+				}
 
-        processedRows += 1;
-        // if (processedRows >= 3 || __collected_data.length >= 100) break;
-        if (__collected_data.length >= 100 && continueProcessing) break;
-      }
+				processedRows += 1;
+				// if (processedRows >= 3 || __collected_data.length >= 100) break;
+				if (__collected_data.length >= RESULTS_LIMIT && continueProcessing) break;
+			}
 		}
 
-    if( __collected_data.length < 100 && continueProcessing){
-      // navigate to next page and start scrapping again
-      const pagination_div = document.querySelector("[class*='--PaginationContainerDiv']");
-      const next_page = pagination_div.children[1];
-      if(next_page && !next_page.disabled){
-        next_page.click();
-        await sleep(10000);
-        continue;
-      }
-    }
-    else{
-      break;
-    }
-    // // do not continue processing if we got here
-    // continueProcessing = false;
-    // // Stop early after 3 rows, do not paginate
-    // break;
+		if( __collected_data.length < RESULTS_LIMIT && continueProcessing){
+		// navigate to next page and start scrapping again
+		const pagination_div = document.querySelector("[class*='--PaginationContainerDiv']");
+		const next_page = pagination_div.children[1];
+		if(next_page && !next_page.disabled){
+			next_page.click();
+			await sleep(10000);
+			continue;
+		}
+		}
+		else{
+		break;
+		}
+		// // do not continue processing if we got here
+		// continueProcessing = false;
+		// // Stop early after 3 rows, do not paginate
+		// break;
 	}
 
   if(continueProcessing){
