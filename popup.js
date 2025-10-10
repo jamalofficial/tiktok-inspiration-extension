@@ -9,20 +9,20 @@
 // ...existing code...
 
 // On page load, if the URL hash contains #explore=1 and the page is https://www.tiktok.com/csi/search*, auto start the process
-chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-  const tab = tabs[0];
-  if (
-    tab &&
-    tab.url &&
-    tab.url.startsWith("https://www.tiktok.com/csi/search") &&
-    tab.url.includes("#explore=1")
-  ) {
-    chrome.tabs.sendMessage(tab.id, { action: "toggleAutomation" }).then((response) => {
-      toggleBtn(response?.status ?? false);
-      console.log("Auto-started scrapping automation: ", response);
-    });
-  }
-});
+// chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+//   const tab = tabs[0];
+//   if (
+//     tab &&
+//     tab.url &&
+//     tab.url.startsWith("https://www.tiktok.com/csi/search") &&
+//     tab.url.includes("#explore=1")
+//   ) {
+//     chrome.tabs.sendMessage(tab.id, { action: "toggleAutomation" }).then((response) => {
+//       toggleBtn(response?.status ?? false);
+//       console.log("Auto-started scrapping automation: ", response);
+//     });
+//   }
+// });
 
 
 document.getElementById("download").onclick = () => {

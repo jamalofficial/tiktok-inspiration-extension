@@ -2,8 +2,8 @@ let collectedData = [];
 let progress = { page: 0, row: 0 };
 let running = false;
 
-// const API_URL = 'https://campfire-insta-tiktok.gitwork.tech/api/v1';
-const API_URL = 'http://localhost:5050/api/v1';
+const API_URL = 'https://campfire-insta-tiktok.gitwork.tech/api/v1';
+// const API_URL = 'http://localhost:5050/api/v1';
 
 // Map detail tabId -> { openerTabId, url }
 const detailTabMap = new Map();
@@ -15,8 +15,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	}
 
 	if (msg.action === "sendLog") {
-		chrome.storage.local.get(["collectedData"], (result) => {
-			const collectedData = result.collectedData || [];
+		if(msg.payload) {
+			const collectedData = msg.payload || [];
 			fetch(`${API_URL}/logs`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -26,7 +26,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 			}).catch(error => {
 				console.error("Error sending logs:", error);
 			});
-		});
+		}
+		else{
+			chrome.storage.local.get(["collectedData"], (result) => {
+				const collectedData = result.collectedData || [];
+				fetch(`${API_URL}/logs`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ log: collectedData, info: msg.data || {} }),
+				}).then(response => {
+					console.log("Logs sent successfully:", response);
+				}).catch(error => {
+					console.error("Error sending logs:", error);
+				});
+			});
+		}
 	}
 
 	if (msg.action === "loadState") {
@@ -58,6 +72,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	if (msg.action === "openTabAndScrape") {
 		const openerTabId = sender?.tab?.id;
 		const { url } = msg;
+		const openerWindowId = sender.tab?.windowId; // 🟢 use this!
+
 		if (!openerTabId || !url) {
 			sendResponse({ ok: false, error: "Missing openerTabId or url" });
 			return; // not async
@@ -71,7 +87,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 			targetUrl = url + '#tiscrape=1';
 		}
 
-		chrome.tabs.create({ url: targetUrl, active: true }, (tab) => {
+		chrome.tabs.create({ url: targetUrl, active: true, windowId: openerWindowId }, (tab) => {
 			if (chrome.runtime.lastError || !tab?.id) {
 				sendResponse({ ok: false, error: chrome.runtime.lastError?.message || "Failed to create tab" });
 				return;

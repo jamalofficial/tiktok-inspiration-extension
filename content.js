@@ -4,7 +4,7 @@ let __progress = { page: 0, row: 0 };
 let __running = false;
 let continueProcessing = true;
 
-const RESULTS_LIMIT = 4;
+const RESULTS_LIMIT = 15;
 
 // ---- runtime shim for MAIN world ----
 (function setupRuntimeShimForMainWorld() {
@@ -92,8 +92,8 @@ function saveState() {
 	});
 }
 
-function sendLog() {
-	console.log("Sending log to server...");
+function sendLog(payload = null) {
+	console.log("Sending log to server...", payload);
 
 	// Get the current URL
 	const url = new URL(window.location.href);
@@ -106,9 +106,12 @@ function sendLog() {
 		action: "sendLog",
 		data: {
 			keyword: keyword || "",
-		}
+		},
+		payload
 	});
 }
+
+
 
 async function loadState() {
 	return await new Promise((resolve) => {
@@ -220,16 +223,16 @@ async function runDetailAutoScrapeIfNeeded() {
 }
 
 // Open a URL in a background tab via background and wait for the result
-function openDetailAndWait(url) {
+async function openDetailAndWait(url) {
 	return new Promise((resolve, reject) => {
-		let timeoutId = setTimeout(() => {
-			reject(new Error("Detail scrape timeout"));
-		}, 120000);
+		// let timeoutId = setTimeout(() => {
+		// 	reject(new Error("Detail scrape timeout"));
+		// }, 30000);
 
 		function onMessage(msg) {
 			if (msg && msg.action === "detailScraped") {
 				console.log("[list] received detailScraped");
-				clearTimeout(timeoutId);
+				// clearTimeout(timeoutId);
 				chrome.runtime.onMessage.removeListener(onMessage);
 				resolve(msg.data);
 			}
@@ -239,7 +242,7 @@ function openDetailAndWait(url) {
 		console.log("[list] opening detail in background", url);
 		chrome.runtime.sendMessage({ action: "openTabAndScrape", url }, (resp) => {
 			if (!resp?.ok) {
-				clearTimeout(timeoutId);
+				// clearTimeout(timeoutId);
 				chrome.runtime.onMessage.removeListener(onMessage);
 				reject(new Error(resp?.error || "Failed to open detail tab"));
 			}
@@ -297,25 +300,33 @@ async function processResults() {
 			if(continueProcessing){
 				// Re-select to avoid stale nodes after DOM updates
 				const tempNodes = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--QueryStringTuxTex']")];
+				const popularities = [...document.querySelectorAll("[class*='--Tbody'] [class*='--TrRow'] [class*='--PopularityDiv']")];
 
 				const node = tempNodes[i];
 				if (!node) break;
 
+				const popularity = popularities[i];
 				const parent = node.closest("[class*='--CellContainerDiv']");
 				const parentDescriptors = parent ? Object.getOwnPropertyDescriptors(parent) : {};
 				const reactFiberKey = Object.keys(parentDescriptors).find((k) => k.startsWith("__reactFiber$"));
 				const refKey = reactFiberKey ? parent[reactFiberKey]?.return?.key : undefined;
 
-				let detailUrl = node.closest('a')?.href;
+				let detailUrl = null; //node.closest('a')?.href;
 				if (!detailUrl && refKey) {
-				detailUrl = `https://www.tiktok.com/csi/detail/${refKey}`;
+					detailUrl = `https://www.tiktok.com/csi/detail/${refKey}`;
 				}
 
 				try {
+					// const search_pop = popularity?.children[0]?.innerText || null
+					// const trend = popularity?.children[2]?.querySelector("[class*='--TrendTuxText']")?.innerText || null
 					const data = await openDetailAndWait(detailUrl);
+					console.log("Page closed", detailUrl);
+					// data?.searchPopularity = search_pop;
+					// data?.trendPercent = trend;
 					__collected_data.push(data);
 					__progress.row = i + 1;
 					saveState();
+					sendLog([data]);
 				} catch (e) {
 					console.error("Detail scrape failed", e);
 					__progress.row = i + 1; // skip and continue
@@ -324,19 +335,19 @@ async function processResults() {
 
 				processedRows += 1;
 				// if (processedRows >= 3 || __collected_data.length >= 100) break;
-				if (__collected_data.length >= RESULTS_LIMIT && continueProcessing) break;
+				if (__collected_data.length >= RESULTS_LIMIT || !continueProcessing) break;
 			}
 		}
 
 		if( __collected_data.length < RESULTS_LIMIT && continueProcessing){
-		// navigate to next page and start scrapping again
-		const pagination_div = document.querySelector("[class*='--PaginationContainerDiv']");
-		const next_page = pagination_div.children[1];
-		if(next_page && !next_page.disabled){
-			next_page.click();
-			await sleep(10000);
-			continue;
-		}
+			// navigate to next page and start scrapping again
+			const pagination_div = document.querySelector("[class*='--PaginationContainerDiv']");
+			const next_page = pagination_div.children[1];
+			if(next_page && !next_page.disabled){
+				next_page.click();
+				await sleep(30000);
+				continue;
+			}
 		}
 		else{
 		break;
@@ -350,10 +361,11 @@ async function processResults() {
   if(continueProcessing){
     __running = false;
     saveState();
-    sendLog();
+    // sendLog();
     // alert("Automation finished, you can download JSON now.");
     alert("Automation finished!");
   }
+  showProgress(false);
 }
 
 // ---- auto resume after reload ----
