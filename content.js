@@ -3,6 +3,7 @@ let __collected_data = [];
 let __progress = { page: 0, row: 0 };
 let __running = false;
 let continueProcessing = true;
+const pendingRequests = {};
 
 const RESULTS_LIMIT = 15;
 
@@ -222,32 +223,24 @@ async function runDetailAutoScrapeIfNeeded() {
 	}
 }
 
-// Open a URL in a background tab via background and wait for the result
 async function openDetailAndWait(url) {
-	return new Promise((resolve, reject) => {
-		// let timeoutId = setTimeout(() => {
-		// 	reject(new Error("Detail scrape timeout"));
-		// }, 30000);
+  const requestId = crypto.randomUUID();
+  console.log("[content] scraping detail:", url, requestId);
 
-		function onMessage(msg) {
-			if (msg && msg.action === "detailScraped") {
-				console.log("[list] received detailScraped");
-				// clearTimeout(timeoutId);
-				chrome.runtime.onMessage.removeListener(onMessage);
-				resolve(msg.data);
-			}
-		}
+  return new Promise((resolve, reject) => {
+    pendingRequests[requestId] = { resolve, reject };
 
-		chrome.runtime.onMessage.addListener(onMessage);
-		console.log("[list] opening detail in background", url);
-		chrome.runtime.sendMessage({ action: "openTabAndScrape", url }, (resp) => {
-			if (!resp?.ok) {
-				// clearTimeout(timeoutId);
-				chrome.runtime.onMessage.removeListener(onMessage);
-				reject(new Error(resp?.error || "Failed to open detail tab"));
-			}
-		});
-	});
+    chrome.runtime.sendMessage(
+      { action: "openTabAndScrape", url, requestId },
+      (resp) => {
+		console.log("response", resp);
+        if (!resp?.ok) {
+          delete pendingRequests[requestId];
+          reject(new Error(resp?.error || "Failed to open detail tab"));
+        }
+      }
+    );
+  });
 }
 
 // Show a dialog on the main page to inform the user that the process is running
@@ -407,5 +400,16 @@ chrome.runtime.onMessage.addListener((msg) => {
 		}
     chrome.runtime.sendMessage({ status: __running, action: `ti-${msg.action}` });
 		return true; // indicate async response (even if not strictly needed)
+	}
+	if (msg?.action === "detailScraped") {
+		console.log("detail scrapping completed", msg);
+		if( msg?.requestId ){
+			const pending = pendingRequests[msg.requestId];
+			if (pending) {
+				console.log("[content] resolved scrape", msg.requestId);
+				pending.resolve(msg.data);
+				delete pendingRequests[msg.requestId];
+			}
+		}
 	}
 });

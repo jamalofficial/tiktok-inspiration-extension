@@ -68,68 +68,59 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 		});
 	}
 
-	// Open a detail page in a new background tab and map it back to the opener
+	// ----- Handle opening detail tabs -----
 	if (msg.action === "openTabAndScrape") {
 		const openerTabId = sender?.tab?.id;
-		const { url } = msg;
-		const openerWindowId = sender.tab?.windowId; // 🟢 use this!
-
-		if (!openerTabId || !url) {
-			sendResponse({ ok: false, error: "Missing openerTabId or url" });
-			return; // not async
-		}
-
-		// Tag the URL so the content script in the new tab knows to auto-scrape
-		let targetUrl = url;
-		if (url.includes('#')) {
-			targetUrl = url + (url.endsWith('#') ? '' : '') + (url.includes('tiscrape=1') ? '' : '&tiscrape=1');
-		} else {
-			targetUrl = url + '#tiscrape=1';
-		}
-
-		chrome.tabs.create({ url: targetUrl, active: true, windowId: openerWindowId }, (tab) => {
-			if (chrome.runtime.lastError || !tab?.id) {
-				sendResponse({ ok: false, error: chrome.runtime.lastError?.message || "Failed to create tab" });
-				return;
+		const { url, requestId } = msg;
+		let finalUrl = url;
+		try {
+			const parsed = new URL(url);
+			if (parsed.hash) {
+			  // If hash already exists, append (avoid duplicate tiscrape param)
+			  if (!parsed.hash.includes("tiscrape=1")) {
+				parsed.hash += (parsed.hash.includes("?") ? "&" : "&") + "tiscrape=1";
+			  }
+			} else {
+			  parsed.hash = "#tiscrape=1";
 			}
-			detailTabMap.set(tab.id, { openerTabId, url: targetUrl });
-			// Ensure window is focused as well
-			if (tab.windowId != null) {
-				chrome.windows.update(tab.windowId, { focused: true });
+			finalUrl = parsed.toString();
+		} catch (err) {
+			// fallback: if invalid URL, append manually
+			if (!url.includes("#tiscrape=1")) {
+				finalUrl += (url.includes("#") ? "&" : "#") + "tiscrape=1";
 			}
-			sendResponse({ ok: true, tabId: tab.id });
+		}
+		chrome.tabs.create({ url: finalUrl, active: true }, (detailTab) => {
+		  if (detailTab?.id) {
+			console.log("details tab created", detailTab);
+			detailTabMap.set(detailTab.id, { openerTabId, requestId });
+			sendResponse({ ok: true });
+		  } else {
+			sendResponse({ ok: false, error: "Failed to open tab" });
+		  }
 		});
-		return true; // async response
+	
+		return true; // keeps sendResponse async
 	}
-
-	// Receive scraped data from the detail tab's content script
+	
+	// ----- Handle completed scrapes -----
 	if (msg.action === "scrapeComplete") {
 		const detailTabId = sender?.tab?.id;
-		const mapping = detailTabId ? detailTabMap.get(detailTabId) : null;
+		const mapping = detailTabMap.get(detailTabId);
 		const data = msg.data || {};
-
-		if (mapping && mapping.openerTabId) {
-			// Relay to opener tab so its content script can update state and proceed
-			chrome.tabs.sendMessage(mapping.openerTabId, { action: "detailScraped", data }, () => {
-				// Close the detail tab after relaying (regardless of sendMessage success)
-				if (detailTabId && detailTabMap.has(detailTabId)) {
-					chrome.tabs.remove(detailTabId, () => {
-						detailTabMap.delete(detailTabId);
-					});
-				}
-
-				// Refocus original opener tab and its window
-				chrome.tabs.get(mapping.openerTabId, (openerTab) => {
-					if (openerTab) {
-						chrome.windows.update(openerTab.windowId, { focused: true }, () => {
-							chrome.tabs.update(mapping.openerTabId, { active: true });
-						});
-					}
+	
+		if (mapping?.openerTabId) {
+		  chrome.tabs.sendMessage(
+			mapping.openerTabId,
+			{ action: "detailScraped", data, requestId: mapping.requestId },
+			() => {
+			  if (detailTabId && detailTabMap.has(detailTabId)) {
+				chrome.tabs.remove(detailTabId, () => {
+				  detailTabMap.delete(detailTabId);
 				});
-			});
-		} else {
-			// Do not close tabs that aren't tracked as detail tabs
-			console.warn("scrapeComplete from untracked tab; ignoring close");
+			  }
+			}
+		  );
 		}
 	}
 });
