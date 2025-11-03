@@ -90,7 +90,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 				finalUrl += (url.includes("#") ? "&" : "#") + "tiscrape=1";
 			}
 		}
-		chrome.tabs.create({ url: finalUrl, active: true }, (detailTab) => {
+		chrome.tabs.create({ url: finalUrl, active: true, windowId: sender?.tab?.windowId }, (detailTab) => {
 		  if (detailTab?.id) {
 			console.log("details tab created", detailTab);
 			detailTabMap.set(detailTab.id, { openerTabId, requestId });

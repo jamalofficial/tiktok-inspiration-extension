@@ -25,9 +25,10 @@
 // });
 
 
-document.getElementById("download").onclick = () => {
-  chrome.runtime.sendMessage({ action: "downloadData" });
-};
+
+// document.getElementById("download").onclick = () => {
+//   chrome.runtime.sendMessage({ action: "downloadData" });
+// };
 
 chrome.runtime.onMessage.addListener((msg) => {
 

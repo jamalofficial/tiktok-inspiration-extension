@@ -5,7 +5,7 @@ let __running = false;
 let continueProcessing = true;
 const pendingRequests = {};
 
-const RESULTS_LIMIT = 15;
+const RESULTS_LIMIT = 4;
 
 // ---- runtime shim for MAIN world ----
 (function setupRuntimeShimForMainWorld() {
@@ -106,7 +106,7 @@ function sendLog(payload = null) {
 	chrome.runtime.sendMessage({
 		action: "sendLog",
 		data: {
-			keyword: keyword || "",
+			topic: keyword || "",
 		},
 		payload
 	});
@@ -131,15 +131,15 @@ async function scrapePageData() {
   // Topic title (top H1-like span)
   try{
     const titleEl = document.querySelector("span.TUXText--weight-bold");
-    data.title = titleEl?.innerText.trim() || "";
+    data.keyword = titleEl?.innerText.trim() || "";
   }
   catch(_){
-    data.title = "";
+    data.keyword = "";
   }
 
 	// Search popularity main number (e.g. 172K)
 	try {
-		const popularityEl = document.querySelector("span.TUXText--weight-bold[style*='32px']");
+		const popularityEl = document.querySelector("[class*='--ExposureWrapper'] span.TUXText--weight-bold");
 		data.searchPopularity = popularityEl?.innerText?.trim?.() || "";
 	} catch (_) {
 		data.searchPopularity = "";
@@ -379,22 +379,38 @@ async function processResults() {
 	}
 })();
 
+const init = async () => {
+	// Check if "#explore=1" is present in the URL and trigger Chrome event if so
+	if (window.location.hash && window.location.hash.includes("explore=1")) {
+		console.log("Initiating automation");
+		await sleep(10000);
+		messageListeners({ action: "toggleAutomation" });
+	}
+}
+init();
+
 // ---- start/stop via popup or console ----
 chrome.runtime.onMessage.addListener((msg) => {
+	messageListeners(msg);
+
+});
+
+const messageListeners = (msg) => {
+	console.log("Action received", msg);
 	if (msg.action === "toggleAutomation") {
 		__running = !__running;
 		let action;
 		if (__running) {
-      continueProcessing = true;
+      		continueProcessing = true;
 			__collected_data = [];
 			__progress = { page: 0, row: 0 };
 			saveState();
 			processResults();
 			action = "started";
 		} else {
-      continueProcessing = false;
+      		continueProcessing = false;
 			saveState();
-      showProgress(false);
+      		showProgress(false);
 			alert("Automation stopped.");
 			action = "stopped";
 		}
@@ -412,4 +428,4 @@ chrome.runtime.onMessage.addListener((msg) => {
 			}
 		}
 	}
-});
+}
